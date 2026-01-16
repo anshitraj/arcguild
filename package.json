@@ -1,0 +1,29 @@
+{
+  "name": "arcguilds-platform",
+  "private": true,
+  "version": "2.0.0",
+  "packageManager": "pnpm@9.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "db:migrate": "cd packages/database && pnpm prisma migrate dev",
+    "db:seed": "cd packages/database && pnpm prisma db seed",
+    "db:studio": "cd packages/database && pnpm prisma studio",
+    "contracts:deploy": "cd packages/contracts && pnpm hardhat run scripts/deploy.ts --network arc-testnet",
+    "indexer:start": "cd apps/indexer && pnpm start"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

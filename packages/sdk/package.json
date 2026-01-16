@@ -1,0 +1,10 @@
+{
+  "name": "@arcguilds/sdk",
+  "version": "1.0.0",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "ethers": "^6.13.0",
+    "viem": "^2.30.0"
+  }
+}

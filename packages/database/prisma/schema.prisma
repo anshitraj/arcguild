@@ -1,0 +1,530 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USERS & AUTH
+// ============================================
+
+model User {
+  id              String   @id @default(cuid())
+  address         String   @unique
+  createdAt       DateTime @default(now())
+  lastLogin       DateTime @default(now())
+  
+  // Gamification
+  xp              Int      @default(0)
+  level           Int      @default(1)
+  reputation      Int      @default(100)
+  
+  // Stats
+  totalMissions   Int      @default(0)
+  totalDeployments Int     @default(0)
+  currentStreak   Int      @default(0)
+  longestStreak   Int      @default(0)
+  lastActiveDate  DateTime @default(now())
+  
+  // Flags & Metadata
+  flags           Json     @default("{}")
+  metadata        Json     @default("{}")
+  
+  // Relations
+  sessions        Session[]
+  guildMemberships GuildMember[]
+  missionProgress  MissionProgress[]
+  proofSubmissions ProofSubmission[]
+  badges          UserBadge[]
+  createdGuilds   Guild[]
+  createdBadges   BadgeTemplate[]
+  deployments     ContractDeployment[]
+  xpHistory       XPTransaction[]
+  reviewedProofs  ProofSubmission[] @relation("ReviewedBy")
+  
+  @@index([address])
+  @@index([xp])
+  @@index([reputation])
+  @@index([level])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  nonce     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([nonce])
+}
+
+// ============================================
+// GUILDS
+// ============================================
+
+enum GuildStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+model Guild {
+  id          String      @id @default(cuid())
+  handle      String      @unique
+  name        String
+  description String?
+  logoUrl     String?
+  bannerUrl   String?
+  tags        String[]    @default([])
+  
+  // Guild Settings
+  inviteCode  String      @unique @default(cuid())
+  isPublic    Boolean     @default(false)
+  status      GuildStatus @default(ACTIVE)
+  
+  // Metadata
+  website     String?
+  twitter     String?
+  discord     String?
+  
+  createdBy   String
+  createdAt   DateTime    @default(now())
+  
+  // Relations
+  creator     User          @relation(fields: [createdBy], references: [id])
+  members     GuildMember[]
+  seasons     Season[]
+  missions    MissionTemplate[]
+  badges      BadgeTemplate[]
+  progress    MissionProgress[]
+  proofs      ProofSubmission[]
+  warsAsA     War[]         @relation("GuildA")
+  warsAsB     War[]         @relation("GuildB")
+  
+  @@index([handle])
+  @@index([status])
+  @@index([createdBy])
+}
+
+enum GuildRole {
+  LEADER
+  OFFICER
+  MEMBER
+}
+
+enum SkillClass {
+  BUILDER
+  TRADER
+  CREATOR
+  COMMUNITY
+}
+
+model GuildMember {
+  id              String       @id @default(cuid())
+  guildId         String
+  userId          String
+  role            GuildRole    @default(MEMBER)
+  skillClass      SkillClass   @default(BUILDER)
+  classChangedAt  DateTime     @default(now())
+  joinedAt        DateTime     @default(now())
+  leftAt          DateTime?
+  
+  // Guild-specific stats
+  guildXP         Int          @default(0)
+  contributionScore Int        @default(0)
+  
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([guildId, userId])
+  @@index([userId])
+  @@index([guildId])
+  @@index([skillClass])
+}
+
+// ============================================
+// SEASONS
+// ============================================
+
+enum SeasonStatus {
+  DRAFT
+  ACTIVE
+  ENDED
+}
+
+model Season {
+  id        String       @id @default(cuid())
+  guildId   String
+  name      String
+  startAt   DateTime
+  endAt     DateTime
+  status    SeasonStatus @default(DRAFT)
+  
+  // Season Config
+  config    Json         @default("{}")
+  
+  createdAt DateTime     @default(now())
+  
+  // Relations
+  guild     Guild             @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  missions  SeasonMission[]
+  progress  MissionProgress[]
+  proofs    ProofSubmission[]
+  wars      War[]
+  badges    UserBadge[]
+  
+  @@index([guildId])
+  @@index([status])
+  @@index([startAt])
+  @@index([endAt])
+}
+
+// ============================================
+// MISSIONS
+// ============================================
+
+enum MissionType {
+  ONCHAIN_ACTION
+  OFFCHAIN_PROOF
+  ADMIN_APPROVED
+}
+
+enum MissionFrequency {
+  DAILY
+  WEEKLY
+  ONCE
+}
+
+model MissionTemplate {
+  id          String            @id @default(cuid())
+  guildId     String
+  type        MissionType
+  title       String
+  description String
+  
+  // Mission Rules
+  rules       Json              @default("{}")
+  
+  // Rewards
+  xpReward    Int               @default(0)
+  guildScore  Int               @default(0)
+  
+  // Caps & Limits
+  caps        Json              @default("{}")
+  frequency   MissionFrequency  @default(WEEKLY)
+  
+  // Eligibility
+  minLevel    Int               @default(0)
+  minReputation Int             @default(0)
+  requiredSkillClass SkillClass?
+  
+  createdAt   DateTime          @default(now())
+  
+  // Relations
+  guild       Guild             @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  seasonMissions SeasonMission[]
+  progress       MissionProgress[]
+  proofs         ProofSubmission[]
+  
+  @@index([guildId])
+  @@index([type])
+}
+
+model SeasonMission {
+  id                String   @id @default(cuid())
+  seasonId          String
+  missionTemplateId String
+  enabled           Boolean  @default(true)
+  overrides         Json     @default("{}")
+  
+  season          Season          @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  missionTemplate MissionTemplate @relation(fields: [missionTemplateId], references: [id])
+  
+  @@unique([seasonId, missionTemplateId])
+  @@index([seasonId])
+  @@index([missionTemplateId])
+}
+
+model MissionProgress {
+  id                String   @id @default(cuid())
+  seasonId          String
+  missionTemplateId String
+  userId            String
+  guildId           String?
+  
+  // Progress Data
+  progress          Json     @default("{}")
+  completed         Boolean  @default(false)
+  completedAt       DateTime?
+  
+  // Rewards Claimed
+  xpAwarded         Int      @default(0)
+  guildScoreAwarded Int      @default(0)
+  
+  updatedAt         DateTime @updatedAt
+  
+  season          Season          @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  missionTemplate MissionTemplate @relation(fields: [missionTemplateId], references: [id])
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guild           Guild?          @relation(fields: [guildId], references: [id], onDelete: SetNull)
+  
+  @@unique([seasonId, missionTemplateId, userId])
+  @@index([userId])
+  @@index([guildId])
+  @@index([seasonId])
+  @@index([completed])
+}
+
+// ============================================
+// PROOF SUBMISSIONS
+// ============================================
+
+enum ProofStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  NEEDS_INFO
+}
+
+model ProofSubmission {
+  id                String      @id @default(cuid())
+  seasonId          String
+  missionTemplateId String
+  userId            String
+  guildId           String?
+  
+  // Proof Data
+  payload           Json        @default("{}")
+  attachmentUrl     String?
+  attachmentHash    String?
+  
+  // Review
+  status            ProofStatus @default(PENDING)
+  reviewerId        String?
+  reviewedAt        DateTime?
+  notes             String?
+  
+  createdAt         DateTime    @default(now())
+  
+  season          Season          @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  missionTemplate MissionTemplate @relation(fields: [missionTemplateId], references: [id])
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guild           Guild?          @relation(fields: [guildId], references: [id], onDelete: SetNull)
+  reviewer        User?           @relation("ReviewedBy", fields: [reviewerId], references: [id])
+  
+  @@index([status])
+  @@index([userId])
+  @@index([guildId])
+  @@index([seasonId])
+  @@index([reviewerId])
+}
+
+// ============================================
+// BADGES
+// ============================================
+
+enum BadgeType {
+  SBT
+  NFT
+}
+
+enum MintConditionType {
+  MISSION_COMPLETE
+  RANK_ACHIEVED
+  CONTRACT_DEPLOYED
+  ADMIN_APPROVAL
+  XP_THRESHOLD
+  REPUTATION_THRESHOLD
+}
+
+model BadgeTemplate {
+  id          String    @id @default(cuid())
+  guildId     String
+  name        String
+  description String
+  imageUrl    String
+  
+  // Badge Config
+  badgeType   BadgeType @default(SBT)
+  
+  // Mint Conditions
+  mintConditions Json   @default("[]")
+  
+  // Metadata
+  metadata    Json      @default("{}")
+  
+  createdBy   String
+  createdAt   DateTime  @default(now())
+  
+  // Relations
+  guild       Guild     @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  creator     User      @relation(fields: [createdBy], references: [id])
+  userBadges  UserBadge[]
+  
+  @@index([guildId])
+  @@index([createdBy])
+}
+
+model UserBadge {
+  id              String   @id @default(cuid())
+  userId          String
+  badgeTemplateId String
+  seasonId        String?
+  
+  // Onchain Data
+  tokenId         String?
+  txHash          String?
+  contractAddress String?
+  
+  // Proof of Earning
+  earnedReason    String
+  proofData       Json     @default("{}")
+  
+  mintedAt        DateTime @default(now())
+  
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeTemplate BadgeTemplate @relation(fields: [badgeTemplateId], references: [id])
+  season        Season?       @relation(fields: [seasonId], references: [id], onDelete: SetNull)
+  
+  @@index([userId])
+  @@index([badgeTemplateId])
+  @@index([seasonId])
+}
+
+// ============================================
+// CONTRACT DEPLOYMENT ARENA
+// ============================================
+
+enum ContractTemplate {
+  ERC20
+  ERC721
+  ERC1155
+  MULTISIG
+  TIMELOCK
+  GOVERNOR
+  CUSTOM
+}
+
+enum DeploymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model ContractDeployment {
+  id              String            @id @default(cuid())
+  userId          String
+  seasonId        String?
+  
+  // Deployment Info
+  template        ContractTemplate
+  contractName    String
+  contractAddress String?
+  deploymentTx    String?
+  
+  // Status
+  status          DeploymentStatus  @default(PENDING)
+  errorMessage    String?
+  
+  // Rewards
+  xpAwarded       Int               @default(0)
+  badgeAwarded    Boolean           @default(false)
+  
+  // Metadata
+  constructorArgs Json              @default("{}")
+  metadata        Json              @default("{}")
+  
+  deployedAt      DateTime          @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([status])
+  @@index([template])
+  @@index([deployedAt])
+}
+
+// ============================================
+// XP & GAMIFICATION
+// ============================================
+
+enum XPSource {
+  MISSION_COMPLETE
+  CONTRACT_DEPLOY
+  PROOF_APPROVED
+  STREAK_BONUS
+  GUILD_BONUS
+  ADMIN_GRANT
+}
+
+model XPTransaction {
+  id          String    @id @default(cuid())
+  userId      String
+  amount      Int
+  source      XPSource
+  sourceId    String?
+  description String
+  metadata    Json      @default("{}")
+  createdAt   DateTime  @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([source])
+  @@index([createdAt])
+}
+
+// ============================================
+// ONCHAIN EVENTS
+// ============================================
+
+model OnchainEvent {
+  id          String   @id @default(cuid())
+  chainId     Int
+  txHash      String
+  logIndex    Int
+  blockNumber Int
+  eventName   String
+  contract    String
+  userAddress String
+  parsed      Json     @default("{}")
+  timestamp   DateTime
+  processed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  
+  @@unique([txHash, logIndex])
+  @@index([userAddress])
+  @@index([eventName])
+  @@index([processed])
+  @@index([timestamp])
+  @@index([blockNumber])
+}
+
+// ============================================
+// WARS (MATCHUPS)
+// ============================================
+
+model War {
+  id        String   @id @default(cuid())
+  seasonId  String
+  weekIndex Int
+  guildAId  String
+  guildBId  String
+  startAt   DateTime
+  endAt     DateTime
+  result    Json     @default("{}")
+  
+  season Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  guildA Guild  @relation("GuildA", fields: [guildAId], references: [id])
+  guildB Guild  @relation("GuildB", fields: [guildBId], references: [id])
+  
+  @@unique([seasonId, weekIndex, guildAId, guildBId])
+  @@index([seasonId])
+  @@index([weekIndex])
+}

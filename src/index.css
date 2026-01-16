@@ -1,0 +1,117 @@
+/*
+ * DESIGN SYSTEM - CUSTOMIZE FOR YOUR APP'S AESTHETIC
+ * 
+ * This is a structural foundation. You SHOULD customize colors, fonts,
+ * and radius based on the app's purpose and vibe.
+ * 
+ * SUGGESTED AESTHETICS BY APP TYPE:
+ * 
+ * 🎮 Games (Neo-Brutalist):
+ *    - Dark bg, neon accents (lime, magenta, cyan)
+ *    - Font: Syne, Space Mono, or Archivo Black
+ *    - Sharp corners (--radius: 0), thick borders
+ *    - High contrast, bold, unapologetic
+ * 
+ * 🌉 DeFi/Bridge (Modern Minimal):
+ *    - Dark mode, electric blue or teal accents
+ *    - Font: Space Grotesk, Geist, or Satoshi
+ *    - Subtle radius, clean lines
+ * 
+ * 💸 Payments/Tipping (Warm & Friendly):
+ *    - Light mode, coral/gold/green accents
+ *    - Font: Plus Jakarta Sans or DM Sans
+ *    - Softer radius, approachable feel
+ * 
+ * 🏛️ Serious/Financial (Editorial):
+ *    - High contrast black/white
+ *    - Font: Instrument Serif + Geist Mono
+ *    - Minimal color, typography-driven
+ */
+
+/* TODO: Change this font import based on app aesthetic */
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* 
+     * CUSTOMIZE THESE VALUES for your app's aesthetic
+     * Format: H S% L% (HSL without commas)
+     */
+    
+    /* Base colors - light theme default, switch for dark mode apps */
+    --background: 0 0% 98%;
+    --foreground: 0 0% 8%;
+    
+    /* Card surfaces */
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 8%;
+    
+    /* Primary action color */
+    --primary: 0 0% 12%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary/muted elements */
+    --secondary: 0 0% 95%;
+    --secondary-foreground: 0 0% 20%;
+    --muted: 0 0% 95%;
+    --muted-foreground: 0 0% 40%;
+    
+    /* Accent - CHANGE THIS to match app personality */
+    --accent: 200 100% 50%;
+    --accent-foreground: 0 0% 100%;
+    
+    /* Semantic colors */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    
+    /* Borders and inputs */
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 200 100% 50%;
+    
+    /* Border radius - adjust for aesthetic (0 for brutalist, 1rem for friendly) */
+    --radius: 0.5rem;
+  }
+
+  /* Dark theme alternative - uncomment and customize for dark mode apps */
+  /*
+  :root {
+    --background: 0 0% 6%;
+    --foreground: 0 0% 95%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 95%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 8%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 90%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 150 100% 50%;
+    --accent-foreground: 0 0% 8%;
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 150 100% 50%;
+  }
+  */
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    /* TODO: Update font-family to match your chosen Google Font import */
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
